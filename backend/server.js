@@ -28,8 +28,8 @@ const clientsDir = path.join(uploadsDir, 'clients');
 
 // CORS configuration
 app.use(cors({
-    origin: ['http://localhost:3000', 'http://localhost:3001'],
-    credentials: true
+  origin: ['http://localhost:3000', 'http://localhost:3001', 'https://your-frontend-domain.vercel.app'],
+  credentials: true
 }));
 
 // Body parsing middleware

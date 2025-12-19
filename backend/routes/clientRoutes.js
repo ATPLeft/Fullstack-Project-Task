@@ -50,7 +50,7 @@ router.post('/', upload.single('image'), async (req, res) => {
         const folder = path.join(__dirname, '../uploads/clients');
 
         // Crop and save image (400x400 for profile)
-        const imagePath = await cropAndSaveImage(req.file.buffer, folder, filename, 400, 400);
+        const imagePath = `${req.protocol}://${req.get('host')}${imagePath}`;await cropAndSaveImage(req.file.buffer, folder, filename, 400, 400);
 
         // Create client
         const client = await Client.create({
