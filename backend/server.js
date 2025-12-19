@@ -23,7 +23,7 @@ const clientsDir = path.join(uploadsDir, 'clients');
 [uploadsDir, projectsDir, clientsDir].forEach(dir => {
     if (!fs.existsSync(dir)) {
         fs.mkdirSync(dir, { recursive: true });
-        console.log(`✅ Created directory: ${dir}`);
+        console.log(`Created directory: ${dir}`);
     }
 });
 
@@ -127,7 +127,7 @@ app.get('/api-docs', (req, res) => {
 // Basic route for testing
 app.get('/', (req, res) => {
     res.json({ 
-        message: '🚀 Flipr Fullstack Task Backend API is running!',
+        message: 'Fullstack Task Backend API is running!',
         version: '1.0.0',
         documentation: '/api-docs',
         health_check: '/health',
@@ -150,22 +150,22 @@ const subscriberRoutes = require('./routes/subscriberRoutes');
 // Use routes with route logging in development
 if (process.env.NODE_ENV === 'development') {
     app.use('/api/projects', (req, res, next) => {
-        console.log(`📦 Projects API: ${req.method} ${req.url}`);
+        console.log(`Projects API: ${req.method} ${req.url}`);
         next();
     }, projectRoutes);
     
     app.use('/api/clients', (req, res, next) => {
-        console.log(`👥 Clients API: ${req.method} ${req.url}`);
+        console.log(`Clients API: ${req.method} ${req.url}`);
         next();
     }, clientRoutes);
     
     app.use('/api/contacts', (req, res, next) => {
-        console.log(`📞 Contacts API: ${req.method} ${req.url}`);
+        console.log(`Contacts API: ${req.method} ${req.url}`);
         next();
     }, contactRoutes);
     
     app.use('/api/subscribers', (req, res, next) => {
-        console.log(`📧 Subscribers API: ${req.method} ${req.url}`);
+        console.log(`Subscribers API: ${req.method} ${req.url}`);
         next();
     }, subscriberRoutes);
 } else {
@@ -269,16 +269,16 @@ process.on('unhandledRejection', (reason, promise) => {
 // Start server
 const server = app.listen(PORT, '0.0.0.0', () => {
     console.log('\n' + '='.repeat(50));
-    console.log('🚀 FLIPR FULLSTACK TASK - BACKEND API');
+    console.log('FULLSTACK TASK - BACKEND API');
     console.log('='.repeat(50));
-    console.log(`✅ Server running in ${process.env.NODE_ENV || 'development'} mode`);
-    console.log(`🔗 Backend URL: http://localhost:${PORT}`);
-    console.log(`🌐 Frontend URL: ${process.env.FRONTEND_URL || 'http://localhost:3000'}`);
-    console.log(`⚡ Admin Panel URL: ${process.env.ADMIN_URL || 'http://localhost:3001'}`);
-    console.log(`🗄️  MongoDB: ${process.env.MONGODB_URI ? 'Connected' : 'Using local'}`);
-    console.log(`📁 Uploads directory: ${uploadsDir}`);
+    console.log(`Server running in ${process.env.NODE_ENV || 'development'} mode`);
+    console.log(`Backend URL: http://localhost:${PORT}`);
+    console.log(`Frontend URL: ${process.env.FRONTEND_URL || 'http://localhost:3000'}`);
+    console.log(`Admin Panel URL: ${process.env.ADMIN_URL || 'http://localhost:3001'}`);
+    console.log(`MongoDB: ${process.env.MONGODB_URI ? 'Connected' : 'Using local'}`);
+    console.log(`Uploads directory: ${uploadsDir}`);
     console.log('='.repeat(50));
-    console.log('\n📋 Available Endpoints:');
+    console.log('\n Available Endpoints:');
     console.log(`   GET  /              - API Info`);
     console.log(`   GET  /health        - Health Check`);
     console.log(`   GET  /api-docs      - API Documentation`);
