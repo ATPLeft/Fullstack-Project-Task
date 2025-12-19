@@ -17,7 +17,7 @@ const projectSchema = new mongoose.Schema({
     category: {
         type: String,
         default: 'Consultation',
-        enum: ['Consultation', 'Design', 'Marketing & Design', 'Consultation & Marketing']
+        enum: ['Consultation', 'Design', 'Marketing & Design', 'Consultation & Marketing', 'Web Development', 'Mobile App', 'E-commerce', 'SaaS']
     },
     location: {
         type: String,

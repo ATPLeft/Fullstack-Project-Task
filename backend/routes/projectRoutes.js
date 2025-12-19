@@ -49,8 +49,8 @@ router.post('/', upload.single('image'), async (req, res) => {
         const filename = `project-${Date.now()}.jpeg`;
         const folder = path.join(__dirname, '../uploads/projects');
 
-        // Crop and save image
-        const imagePath = await cropAndSaveImage(req.file.buffer, folder, filename);
+        // Crop and save image (450x350 as per requirements)
+        const imagePath = await cropAndSaveImage(req.file.buffer, folder, filename, 450, 350);
 
         // Create project
         const project = await Project.create({

@@ -31,7 +31,6 @@ router.post('/', upload.single('image'), async (req, res) => {
     try {
         const { name, description, designation } = req.body;
 
-        // Validation
         if (!name || !description || !designation) {
             return res.status(400).json({
                 success: false,
@@ -50,35 +49,8 @@ router.post('/', upload.single('image'), async (req, res) => {
         const filename = `client-${Date.now()}.jpeg`;
         const folder = path.join(__dirname, '../uploads/clients');
 
-        // Crop and save image (400x400 for client profile)
-        let imagePath;
-        try {
-            // Create folder if it doesn't exist
-            const fs = require('fs');
-            if (!fs.existsSync(folder)) {
-                fs.mkdirSync(folder, { recursive: true });
-            }
-
-            const filepath = path.join(folder, filename);
-            
-            // Crop image to 400x400 (square for profile)
-            await require('sharp')(req.file.buffer)
-                .resize(400, 400, {
-                    fit: 'cover',
-                    position: 'center'
-                })
-                .toFormat('jpeg')
-                .jpeg({ quality: 90 })
-                .toFile(filepath);
-
-            imagePath = `/uploads/clients/${filename}`;
-        } catch (imageError) {
-            return res.status(500).json({
-                success: false,
-                message: 'Error processing image',
-                error: imageError.message
-            });
-        }
+        // Crop and save image (400x400 for profile)
+        const imagePath = await cropAndSaveImage(req.file.buffer, folder, filename, 400, 400);
 
         // Create client
         const client = await Client.create({
@@ -136,80 +108,6 @@ router.delete('/:id', async (req, res) => {
         res.status(500).json({
             success: false,
             message: 'Server Error',
-            error: error.message
-        });
-    }
-});
-
-// @desc    Update a client
-// @route   PUT /api/clients/:id
-// @access  Private (for admin)
-router.put('/:id', upload.single('image'), async (req, res) => {
-    try {
-        const { name, description, designation } = req.body;
-        const client = await Client.findById(req.params.id);
-
-        if (!client) {
-            return res.status(404).json({
-                success: false,
-                message: 'Client not found'
-            });
-        }
-
-        let updateData = { name, description, designation };
-        
-        // If new image is uploaded
-        if (req.file) {
-            // Delete old image
-            if (client.image) {
-                const fs = require('fs');
-                const oldImagePath = path.join(__dirname, '..', client.image);
-                if (fs.existsSync(oldImagePath)) {
-                    fs.unlinkSync(oldImagePath);
-                }
-            }
-
-            // Generate filename for new image
-            const filename = `client-${Date.now()}.jpeg`;
-            const folder = path.join(__dirname, '../uploads/clients');
-
-            // Create folder if it doesn't exist
-            const fs = require('fs');
-            if (!fs.existsSync(folder)) {
-                fs.mkdirSync(folder, { recursive: true });
-            }
-
-            const filepath = path.join(folder, filename);
-            
-            // Crop and save new image
-            await require('sharp')(req.file.buffer)
-                .resize(400, 400, {
-                    fit: 'cover',
-                    position: 'center'
-                })
-                .toFormat('jpeg')
-                .jpeg({ quality: 90 })
-                .toFile(filepath);
-
-            updateData.image = `/uploads/clients/${filename}`;
-        }
-
-        const updatedClient = await Client.findByIdAndUpdate(
-            req.params.id,
-            updateData,
-            { new: true, runValidators: true }
-        );
-
-        res.json({
-            success: true,
-            message: 'Client updated successfully',
-            data: updatedClient
-        });
-
-    } catch (error) {
-        res.status(500).json({
-            success: false,
-            message: 'Error updating client',
             error: error.message
         });
     }

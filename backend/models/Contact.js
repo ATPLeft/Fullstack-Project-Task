@@ -14,12 +14,27 @@ const contactSchema = new mongoose.Schema({
     },
     mobile: {
         type: String,
-        required: [true, 'Mobile number is required'],
         trim: true
     },
     city: {
         type: String,
-        required: [true, 'City is required'],
+        trim: true
+    },
+    type: {
+        type: String,
+        enum: ['contact_form', 'quote_request'],
+        default: 'contact_form'
+    },
+    projectType: {
+        type: String,
+        trim: true
+    },
+    budget: {
+        type: String,
+        trim: true
+    },
+    description: {
+        type: String,
         trim: true
     },
     submittedAt: {

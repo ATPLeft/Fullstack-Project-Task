@@ -1,7 +1,6 @@
 const express = require('express');
 const router = express.Router();
 const Contact = require('../models/Contact');
-const validator = require('validator');
 
 // @desc    Get all contact form submissions
 // @route   GET /api/contacts
@@ -24,74 +23,84 @@ router.get('/', async (req, res) => {
     }
 });
 
-// @desc    Submit contact form
+// @desc    Submit contact form (supports both regular contact and quote requests)
 // @route   POST /api/contacts
 // @access  Public
 router.post('/', async (req, res) => {
     try {
-        const { name, email, mobile, city } = req.body;
+        const { name, email, mobile, city, type, projectType, budget, description } = req.body;
 
-        // Validation
-        if (!name || !email || !mobile || !city) {
-            return res.status(400).json({
-                success: false,
-                message: 'Please provide all fields: name, email, mobile, and city'
-            });
+        console.log('Received form data:', req.body);
+
+        // BASIC VALIDATION - accept both contact and quote forms
+        if (type === 'quote_request') {
+            // Quote request validation
+            if (!name || !email || !projectType || !budget || !description) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'For quote requests, please provide: name, email, projectType, budget, and description'
+                });
+            }
+        } else {
+            // Regular contact form validation
+            if (!name || !email || !mobile || !city) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Please provide all fields: name, email, mobile, and city'
+                });
+            }
+
+            // Basic mobile validation
+            const mobileDigits = mobile.replace(/\D/g, '');
+            if (mobileDigits.length < 10) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Please provide a valid mobile number (at least 10 digits)'
+                });
+            }
         }
 
         // Email validation
-        if (!validator.isEmail(email)) {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(email)) {
             return res.status(400).json({
                 success: false,
                 message: 'Please provide a valid email address'
             });
         }
 
-        // Mobile validation (basic Indian format)
-        const mobileRegex = /^[6-9]\d{9}$/;
-        if (!mobileRegex.test(mobile.replace(/\D/g, ''))) {
-            return res.status(400).json({
-                success: false,
-                message: 'Please provide a valid 10-digit mobile number'
-            });
-        }
-
-        // Check if contact already exists with same email and mobile (optional)
-        const existingContact = await Contact.findOne({ 
-            $or: [
-                { email: email.toLowerCase() },
-                { mobile: mobile.replace(/\D/g, '') }
-            ],
-            submittedAt: { 
-                $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) // Last 24 hours
-            }
-        });
-
-        if (existingContact) {
-            return res.status(400).json({
-                success: false,
-                message: 'You have already submitted a contact form recently. Please try again later.'
-            });
-        }
-
         // Create contact submission
-        const contact = await Contact.create({
+        const contactData = {
             name: name.trim(),
             email: email.toLowerCase().trim(),
-            mobile: mobile.replace(/\D/g, ''), // Store only digits
-            city: city.trim()
-        });
+            type: type || 'contact_form',
+            ...(type === 'quote_request' ? {
+                projectType: projectType.trim(),
+                budget: budget.trim(),
+                description: description.trim(),
+                mobile: 'N/A',
+                city: 'N/A'
+            } : {
+                mobile: mobile.replace(/\D/g, '').substring(0, 15),
+                city: city.trim(),
+                projectType: '',
+                budget: '',
+                description: ''
+            })
+        };
 
-        // Log the submission (optional)
-        console.log(`New contact form submitted: ${name} - ${email}`);
+        const contact = await Contact.create(contactData);
 
         res.status(201).json({
             success: true,
-            message: 'Thank you! Your contact form has been submitted successfully.',
+            message: type === 'quote_request' 
+                ? 'Thank you! Your quote request has been submitted successfully.'
+                : 'Thank you! Your contact form has been submitted successfully.',
             data: {
                 id: contact._id,
                 name: contact.name,
                 email: contact.email,
+                type: contact.type,
                 submittedAt: contact.submittedAt
             }
         });
@@ -100,7 +109,7 @@ router.post('/', async (req, res) => {
         console.error('Contact form error:', error);
         res.status(500).json({
             success: false,
-            message: 'Error submitting contact form',
+            message: 'Error submitting form',
             error: process.env.NODE_ENV === 'development' ? error.message : undefined
         });
     }
@@ -152,46 +161,6 @@ router.delete('/:id', async (req, res) => {
         res.json({
             success: true,
             message: 'Contact deleted successfully'
-        });
-    } catch (error) {
-        res.status(500).json({
-            success: false,
-            message: 'Server Error',
-            error: error.message
-        });
-    }
-});
-
-// @desc    Get contact statistics
-// @route   GET /api/contacts/stats/summary
-// @access  Private (for admin)
-router.get('/stats/summary', async (req, res) => {
-    try {
-        const totalContacts = await Contact.countDocuments();
-        
-        // Contacts from last 7 days
-        const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-        const recentContacts = await Contact.countDocuments({
-            submittedAt: { $gte: sevenDaysAgo }
-        });
-
-        // Top cities
-        const topCities = await Contact.aggregate([
-            { $group: { 
-                _id: '$city', 
-                count: { $sum: 1 } 
-            }},
-            { $sort: { count: -1 } },
-            { $limit: 5 }
-        ]);
-
-        res.json({
-            success: true,
-            data: {
-                totalContacts,
-                recentContacts,
-                topCities
-            }
         });
     } catch (error) {
         res.status(500).json({

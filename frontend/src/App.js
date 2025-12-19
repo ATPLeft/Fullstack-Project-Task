@@ -1,44 +1,35 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { 
-  Menu, X, ArrowRight, ExternalLink, MapPin, Calendar,
+  Menu, X, ArrowRight, ExternalLink, MapPin,
   Star, Quote, Send, CheckCircle, Phone, Mail, MapPin as MapPinIcon,
   Facebook, Twitter, Linkedin, Instagram, Github, Heart, Check,
-  Plus
+  Plus, Calendar, User
 } from 'lucide-react';
-import './styles/global.css';
-import './styles/components.css';
 
 const API_URL = 'http://localhost:5000/api';
 
 function App() {
+  // Refs for forms
+  const contactFormRef = useRef(null);
+  const quoteFormRef = useRef(null);
+  const newsletterRef = useRef(null);
+  
+  // State
   const [projects, setProjects] = useState([]);
   const [clients, setClients] = useState([]);
-  const [contactForm, setContactForm] = useState({
-    name: '',
-    email: '',
-    mobile: '',
-    city: ''
-  });
-  const [quoteForm, setQuoteForm] = useState({
-    name: '',
-    email: '',
-    projectType: '',
-    budget: '',
-    description: ''
-  });
-  const [subscriberEmail, setSubscriberEmail] = useState('');
-  const [loadingProjects, setLoadingProjects] = useState(true);
-  const [loadingClients, setLoadingClients] = useState(true);
-  const [contactLoading, setContactLoading] = useState(false);
-  const [quoteLoading, setQuoteLoading] = useState(false);
-  const [subscribeLoading, setSubscribeLoading] = useState(false);
+  const [loading, setLoading] = useState({ projects: true, clients: true });
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [showQuoteModal, setShowQuoteModal] = useState(false);
+  const [activeClientIndex, setActiveClientIndex] = useState(0);
+  
+  // Success states
   const [contactSuccess, setContactSuccess] = useState(false);
   const [quoteSuccess, setQuoteSuccess] = useState(false);
   const [subscribeSuccess, setSubscribeSuccess] = useState(false);
-  const [activeClientIndex, setActiveClientIndex] = useState(0);
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [showQuoteModal, setShowQuoteModal] = useState(false);
+  const [contactLoading, setContactLoading] = useState(false);
+  const [quoteLoading, setQuoteLoading] = useState(false);
+  const [subscribeLoading, setSubscribeLoading] = useState(false);
 
   useEffect(() => {
     fetchProjects();
@@ -52,7 +43,7 @@ function App() {
     } catch (error) {
       console.error('Error fetching projects:', error);
     } finally {
-      setLoadingProjects(false);
+      setLoading(prev => ({ ...prev, projects: false }));
     }
   };
 
@@ -63,89 +54,100 @@ function App() {
     } catch (error) {
       console.error('Error fetching clients:', error);
     } finally {
-      setLoadingClients(false);
+      setLoading(prev => ({ ...prev, clients: false }));
     }
   };
 
+  // Handle contact form submission
   const handleContactSubmit = async (e) => {
     e.preventDefault();
     setContactLoading(true);
     
+    if (!contactFormRef.current) return;
+    
+    const formData = new FormData(contactFormRef.current);
+    const data = {
+      name: formData.get('name') || '',
+      email: formData.get('email') || '',
+      mobile: formData.get('mobile') || '',
+      city: formData.get('city') || ''
+    };
+    
     try {
-      await axios.post(`${API_URL}/contacts`, contactForm);
+      await axios.post(`${API_URL}/contacts`, data);
       setContactSuccess(true);
-      setContactForm({ name: '', email: '', mobile: '', city: '' });
+      contactFormRef.current.reset();
       
-      setTimeout(() => setContactSuccess(false), 5000);
+      setTimeout(() => {
+        setContactSuccess(false);
+      }, 5000);
+      
     } catch (error) {
-      console.error('Error submitting contact:', error);
-      alert('There was an error submitting the form. Please try again.');
+      console.error('Contact form error:', error.response?.data || error.message);
+      alert(error.response?.data?.message || 'Error submitting form. Please try again.');
     } finally {
       setContactLoading(false);
     }
   };
 
+  // Handle quote form submission
   const handleQuoteSubmit = async (e) => {
     e.preventDefault();
     setQuoteLoading(true);
     
+    if (!quoteFormRef.current) return;
+    
+    const formData = new FormData(quoteFormRef.current);
+    const data = {
+      name: formData.get('quoteName') || '',
+      email: formData.get('quoteEmail') || '',
+      mobile: 'N/A',
+      city: 'N/A',
+      type: 'quote_request',
+      projectType: formData.get('projectType') || '',
+      budget: formData.get('budget') || '',
+      description: formData.get('description') || ''
+    };
+    
     try {
-      // In a real app, you would send this to a different endpoint
-      // For now, we'll use the contact endpoint with additional data
-      const quoteData = {
-        ...quoteForm,
-        type: 'quote_request',
-        submittedAt: new Date().toISOString()
-      };
-      
-      await axios.post(`${API_URL}/contacts`, quoteData);
+      await axios.post(`${API_URL}/contacts`, data);
       setQuoteSuccess(true);
-      setQuoteForm({ 
-        name: '', 
-        email: '', 
-        projectType: '', 
-        budget: '', 
-        description: '' 
-      });
+      quoteFormRef.current.reset();
       setShowQuoteModal(false);
       
-      setTimeout(() => setQuoteSuccess(false), 5000);
+      setTimeout(() => {
+        setQuoteSuccess(false);
+      }, 5000);
+      
       alert('Quote request submitted successfully! We will contact you within 24 hours.');
     } catch (error) {
-      console.error('Error submitting quote:', error);
-      alert('There was an error submitting your quote request. Please try again.');
+      console.error('Quote form error:', error.response?.data || error.message);
+      alert(error.response?.data?.message || 'Error submitting quote request. Please try again.');
     } finally {
       setQuoteLoading(false);
     }
   };
 
-  const handleGetQuoteClick = () => {
-    setShowQuoteModal(true);
-  };
-
-  const handleStartProjectClick = () => {
-    // Scroll to contact form
-    document.getElementById('contact').scrollIntoView({ behavior: 'smooth' });
-  };
-
-  const handleViewAllProjectsClick = () => {
-    // In a real app, this would navigate to a projects page
-    alert('In a full application, this would show all projects. For now, showing available projects.');
-  };
-
+  // Handle newsletter subscription
   const handleSubscribe = async () => {
-    if (!subscriberEmail) {
-      alert('Please enter your email address');
+    if (!newsletterRef.current) return;
+    
+    const email = newsletterRef.current.value;
+    if (!email || !email.includes('@')) {
+      alert('Please enter a valid email address');
       return;
     }
     
     setSubscribeLoading(true);
     try {
-      await axios.post(`${API_URL}/subscribers`, { email: subscriberEmail });
+      await axios.post(`${API_URL}/subscribers`, { email });
       setSubscribeSuccess(true);
-      setSubscriberEmail('');
+      newsletterRef.current.value = '';
       
-      setTimeout(() => setSubscribeSuccess(false), 5000);
+      setTimeout(() => {
+        setSubscribeSuccess(false);
+      }, 5000);
+      
     } catch (error) {
       if (error.response?.data?.message?.includes('already subscribed')) {
         alert('This email is already subscribed to our newsletter.');
@@ -157,49 +159,55 @@ function App() {
     }
   };
 
+  const handleGetQuoteClick = () => {
+    setShowQuoteModal(true);
+    setIsMenuOpen(false);
+  };
+
+  const handleStartProjectClick = () => {
+    document.getElementById('contact').scrollIntoView({ behavior: 'smooth' });
+    setIsMenuOpen(false);
+  };
+
+  const handleViewAllProjectsClick = () => {
+    alert('This would show all projects in a full application.');
+  };
+
   // Header Component
-  // Header Component - Fixed
-const Header = () => (
-  <header className="header">
-    <div className="container">
-      <a href="/" className="logo">
-        <div className="logo-icon">D</div>
-        <span className="logo-text">Digital<span>Solutions</span></span>
-      </a>
+  const Header = () => (
+    <header className="header">
+      <div className="container">
+        <a href="#home" className="logo" onClick={() => setIsMenuOpen(false)}>
+          <div className="logo-icon">D</div>
+          <span className="logo-text">Digital<span>Solutions</span></span>
+        </a>
 
-      <nav className={`nav ${isMenuOpen ? 'active' : ''}`}>
-        <a href="#home" className="nav-link active" onClick={() => setIsMenuOpen(false)}>Home</a>
-        <a href="#services" className="nav-link" onClick={() => setIsMenuOpen(false)}>Services</a>
-        <a href="#projects" className="nav-link" onClick={() => setIsMenuOpen(false)}>Projects</a>
-        <a href="#testimonials" className="nav-link" onClick={() => setIsMenuOpen(false)}>Testimonials</a>
-        <a href="#contact" className="nav-link" onClick={() => setIsMenuOpen(false)}>Contact</a>
+        <nav className={`nav ${isMenuOpen ? 'active' : ''}`}>
+          <a href="#home" className="nav-link active" onClick={() => setIsMenuOpen(false)}>Home</a>
+          <a href="#projects" className="nav-link" onClick={() => setIsMenuOpen(false)}>Projects</a>
+          <a href="#testimonials" className="nav-link" onClick={() => setIsMenuOpen(false)}>Testimonials</a>
+          <a href="#contact" className="nav-link" onClick={() => setIsMenuOpen(false)}>Contact</a>
+          <button 
+            className="btn btn-primary" 
+            onClick={handleGetQuoteClick}
+            style={{ 
+              padding: '0.75rem 1.5rem',
+              marginLeft: '1rem'
+            }}
+          >
+            Get Quote
+          </button>
+        </nav>
+
         <button 
-          className="btn btn-primary" 
-          onClick={() => {
-            setIsMenuOpen(false);
-            handleGetQuoteClick();
-          }}
-          style={{ padding: '0.75rem 1.5rem' }}
+          className="mobile-menu-btn"
+          onClick={() => setIsMenuOpen(!isMenuOpen)}
         >
-          Get Quote
+          {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
         </button>
-      </nav>
-
-      <button 
-        className="mobile-menu-btn"
-        onClick={() => setIsMenuOpen(!isMenuOpen)}
-        style={{ 
-          background: 'none',
-          border: 'none',
-          cursor: 'pointer',
-          padding: '0.5rem'
-        }}
-      >
-        {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
-      </button>
-    </div>
-  </header>
-);
+      </div>
+    </header>
+  );
 
   // Hero Component
   const Hero = () => (
@@ -222,12 +230,14 @@ const Header = () => (
             <button 
               className="btn btn-primary flex items-center gap-2"
               onClick={handleGetQuoteClick}
+              style={{ padding: '1rem 2rem' }}
             >
               Get Free Quote <ArrowRight size={20} />
             </button>
             <button 
               className="btn btn-secondary"
               onClick={handleStartProjectClick}
+              style={{ padding: '1rem 2rem' }}
             >
               Start Project
             </button>
@@ -267,7 +277,7 @@ const Header = () => (
           </p>
         </div>
 
-        {loadingProjects ? (
+        {loading.projects ? (
           <div className="project-grid">
             {[1, 2, 3].map((i) => (
               <div key={i} className="project-card">
@@ -299,21 +309,24 @@ const Header = () => (
                         <MapPin size={16} />
                         <span>{project.location}</span>
                       </div>
-                      <button 
-                        className="project-link"
-                        onClick={() => alert(`More details about ${project.name} would appear here.`)}
-                      >
-                        Read More
-                        <ExternalLink size={18} />
-                      </button>
+                      <div className="project-date">
+                        <Calendar size={16} />
+                        <span>{new Date(project.createdAt).toLocaleDateString()}</span>
+                      </div>
                     </div>
+                    <button 
+                      className="project-link"
+                      onClick={() => alert(`Project: ${project.name}\n\n${project.description}`)}
+                    >
+                      Read More <ExternalLink size={18} />
+                    </button>
                   </div>
                 </div>
               ))}
               
               {/* Add New Project Card */}
               <div 
-                className="project-card flex flex-col items-center justify-center text-center p-8 border-2 border-dashed border-gray-300 hover:border-primary transition-colors cursor-pointer"
+                className="project-card flex flex-col items-center justify-center text-center p-8 border-2 border-dashed border-gray-300 hover:border-primary cursor-pointer"
                 onClick={handleGetQuoteClick}
               >
                 <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mb-4">
@@ -323,7 +336,13 @@ const Header = () => (
                 </div>
                 <h3 className="project-title">Start New Project</h3>
                 <p className="project-description">Ready to begin your next big idea?</p>
-                <button className="btn btn-primary mt-4" onClick={handleGetQuoteClick}>
+                <button 
+                  className="btn btn-primary mt-4"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleGetQuoteClick();
+                  }}
+                >
                   Get Quote
                 </button>
               </div>
@@ -334,6 +353,7 @@ const Header = () => (
                 <button 
                   className="btn btn-outline"
                   onClick={handleViewAllProjectsClick}
+                  style={{ padding: '0.75rem 2rem' }}
                 >
                   View All Projects
                 </button>
@@ -345,7 +365,7 @@ const Header = () => (
     </section>
   );
 
-  // Clients Component
+  // Clients Testimonials Component
   const ClientsSection = () => (
     <section className="section-padding clients-section" id="testimonials">
       <div className="container">
@@ -359,7 +379,7 @@ const Header = () => (
           </p>
         </div>
 
-        {loadingClients ? (
+        {loading.clients ? (
           <div className="grid md-grid-cols-2 gap-8">
             {[1, 2].map((i) => (
               <div key={i} className="testimonial-card animate-pulse">
@@ -378,6 +398,7 @@ const Header = () => (
           </div>
         ) : (
           <>
+            {/* Main Testimonial */}
             {clients.length > 0 && (
               <div className="testimonial-card">
                 <Quote className="absolute top-8 left-8 w-12 h-12 text-primary/20" />
@@ -397,6 +418,15 @@ const Header = () => (
                     <div className="author-info">
                       <h4>{clients[activeClientIndex]?.name}</h4>
                       <p>{clients[activeClientIndex]?.designation}</p>
+                      <div className="flex mt-2">
+                        {[1, 2, 3, 4, 5].map((star) => (
+                          <Star 
+                            key={star} 
+                            size={16} 
+                            className="text-yellow-500 fill-yellow-500" 
+                          />
+                        ))}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -415,6 +445,7 @@ const Header = () => (
               </div>
             )}
 
+            {/* Client Grid */}
             <div className="client-logos">
               {clients.slice(0, 5).map((client, index) => (
                 <div 
@@ -427,15 +458,15 @@ const Header = () => (
                     alt={client.name}
                     className="client-avatar"
                   />
-                  <h4>{client.name}</h4>
-                  <p className="text-sm">{client.designation}</p>
+                  <h4 className="font-bold mt-4">{client.name}</h4>
+                  <p className="text-sm text-gray-600">{client.designation}</p>
                   
                   <div className="flex justify-center mt-3">
                     {[1, 2, 3, 4, 5].map((star) => (
                       <Star 
                         key={star} 
                         size={16} 
-                        className="text-accent fill-accent" 
+                        className="text-yellow-500 fill-yellow-500" 
                       />
                     ))}
                   </div>
@@ -445,6 +476,7 @@ const Header = () => (
           </>
         )}
 
+        {/* Stats Banner */}
         <div className="stats-banner">
           <div className="stats-grid">
             <div className="stat-banner-item">
@@ -539,7 +571,7 @@ const Header = () => (
             {contactSuccess ? (
               <div className="success-message">
                 <div className="success-icon">
-                  <CheckCircle size={48} />
+                  <CheckCircle size={48} className="text-green-600" />
                 </div>
                 <h3 className="text-2xl font-bold mb-4">Thank You!</h3>
                 <p className="mb-8">
@@ -548,21 +580,26 @@ const Header = () => (
                 <button
                   onClick={() => setContactSuccess(false)}
                   className="btn btn-primary"
+                  style={{ padding: '0.75rem 2rem' }}
                 >
                   Send Another Message
                 </button>
               </div>
             ) : (
-              <form onSubmit={handleContactSubmit} className="space-y-6">
+              <form 
+                ref={contactFormRef}
+                onSubmit={handleContactSubmit} 
+                className="space-y-6"
+              >
                 <div className="form-group">
                   <label className="form-label">Full Name</label>
                   <input
                     type="text"
-                    value={contactForm.name}
-                    onChange={(e) => setContactForm({...contactForm, name: e.target.value})}
-                    className="form-input"
+                    name="name"
+                    className="stable-input"
                     placeholder="Enter your full name"
                     required
+                    defaultValue=""
                   />
                 </div>
                 
@@ -571,11 +608,11 @@ const Header = () => (
                     <label className="form-label">Email Address</label>
                     <input
                       type="email"
-                      value={contactForm.email}
-                      onChange={(e) => setContactForm({...contactForm, email: e.target.value})}
-                      className="form-input"
+                      name="email"
+                      className="stable-input"
                       placeholder="Enter email address"
                       required
+                      defaultValue=""
                     />
                   </div>
                   
@@ -583,11 +620,11 @@ const Header = () => (
                     <label className="form-label">Mobile Number</label>
                     <input
                       type="tel"
-                      value={contactForm.mobile}
-                      onChange={(e) => setContactForm({...contactForm, mobile: e.target.value})}
-                      className="form-input"
+                      name="mobile"
+                      className="stable-input"
                       placeholder="Enter mobile number"
                       required
+                      defaultValue=""
                     />
                   </div>
                 </div>
@@ -596,11 +633,11 @@ const Header = () => (
                   <label className="form-label">City</label>
                   <input
                     type="text"
-                    value={contactForm.city}
-                    onChange={(e) => setContactForm({...contactForm, city: e.target.value})}
-                    className="form-input"
+                    name="city"
+                    className="stable-input"
                     placeholder="Area, City"
                     required
+                    defaultValue=""
                   />
                 </div>
                 
@@ -609,6 +646,7 @@ const Header = () => (
                     type="submit"
                     disabled={contactLoading}
                     className="btn btn-primary w-full flex items-center justify-center gap-2"
+                    style={{ padding: '1rem' }}
                   >
                     {contactLoading ? (
                       <>
@@ -641,7 +679,7 @@ const Header = () => (
       <div className="container">
         <div className="newsletter-content">
           <div className="newsletter-icon">
-            <Mail size={32} />
+            <Mail size={32} className="text-white" />
           </div>
           
           <h2 className="newsletter-title">
@@ -655,7 +693,7 @@ const Header = () => (
           
           {subscribeSuccess ? (
             <div className="subscribed-message">
-              <Check size={24} />
+              <Check size={24} className="text-white" />
               <span className="text-lg font-semibold">
                 Thank you for subscribing! Check your email for confirmation.
               </span>
@@ -663,16 +701,17 @@ const Header = () => (
           ) : (
             <div className="newsletter-form">
               <input
+                ref={newsletterRef}
                 type="email"
-                value={subscriberEmail}
-                onChange={(e) => setSubscriberEmail(e.target.value)}
-                placeholder="Enter your email address"
                 className="newsletter-input"
+                placeholder="Enter your email address"
+                defaultValue=""
               />
               <button
                 onClick={handleSubscribe}
                 disabled={subscribeLoading}
                 className="newsletter-subscribe flex items-center justify-center gap-2"
+                style={{ padding: '0.875rem 2rem' }}
               >
                 {subscribeLoading ? (
                   <>
@@ -749,7 +788,6 @@ const Header = () => (
             <h3 className="footer-heading">Quick Links</h3>
             <ul className="footer-links">
               <li><a href="#home">Home</a></li>
-              <li><a href="#services">Services</a></li>
               <li><a href="#projects">Projects</a></li>
               <li><a href="#testimonials">Testimonials</a></li>
               <li><a href="#contact">Contact</a></li>
@@ -764,7 +802,6 @@ const Header = () => (
               <li><a href="#">UI/UX Design</a></li>
               <li><a href="#">Digital Marketing</a></li>
               <li><a href="#">Consultation</a></li>
-              <li><a href="#">E-commerce</a></li>
             </ul>
           </div>
 
@@ -809,8 +846,8 @@ const Header = () => (
     if (!showQuoteModal) return null;
 
     return (
-      <div className="modal-overlay">
-        <div className="modal">
+      <div className="modal-overlay" onClick={() => setShowQuoteModal(false)}>
+        <div className="modal" onClick={(e) => e.stopPropagation()}>
           <div className="modal-header">
             <h3 className="modal-title">Get a Free Quote</h3>
             <button 
@@ -825,7 +862,7 @@ const Header = () => (
             {quoteSuccess ? (
               <div className="success-message">
                 <div className="success-icon">
-                  <CheckCircle size={48} />
+                  <CheckCircle size={48} className="text-green-600" />
                 </div>
                 <h3 className="text-2xl font-bold mb-4">Thank You!</h3>
                 <p className="mb-8">
@@ -834,21 +871,26 @@ const Header = () => (
                 <button
                   onClick={() => setQuoteSuccess(false)}
                   className="btn btn-primary"
+                  style={{ padding: '0.75rem 2rem' }}
                 >
                   Submit Another Request
                 </button>
               </div>
             ) : (
-              <form onSubmit={handleQuoteSubmit} className="space-y-6">
+              <form 
+                ref={quoteFormRef}
+                onSubmit={handleQuoteSubmit} 
+                className="space-y-6"
+              >
                 <div className="form-group">
                   <label className="form-label">Full Name *</label>
                   <input
                     type="text"
-                    value={quoteForm.name}
-                    onChange={(e) => setQuoteForm({...quoteForm, name: e.target.value})}
-                    className="form-input"
+                    name="quoteName"
+                    className="stable-input"
                     placeholder="Enter your full name"
                     required
+                    defaultValue=""
                   />
                 </div>
                 
@@ -856,11 +898,11 @@ const Header = () => (
                   <label className="form-label">Email Address *</label>
                   <input
                     type="email"
-                    value={quoteForm.email}
-                    onChange={(e) => setQuoteForm({...quoteForm, email: e.target.value})}
-                    className="form-input"
+                    name="quoteEmail"
+                    className="stable-input"
                     placeholder="Enter email address"
                     required
+                    defaultValue=""
                   />
                 </div>
                 
@@ -868,10 +910,10 @@ const Header = () => (
                   <div className="form-group">
                     <label className="form-label">Project Type</label>
                     <select
-                      value={quoteForm.projectType}
-                      onChange={(e) => setQuoteForm({...quoteForm, projectType: e.target.value})}
-                      className="form-input"
+                      name="projectType"
+                      className="stable-input"
                       required
+                      defaultValue=""
                     >
                       <option value="">Select Type</option>
                       <option value="web">Web Development</option>
@@ -879,17 +921,16 @@ const Header = () => (
                       <option value="design">UI/UX Design</option>
                       <option value="marketing">Digital Marketing</option>
                       <option value="consultation">Consultation</option>
-                      <option value="other">Other</option>
                     </select>
                   </div>
                   
                   <div className="form-group">
                     <label className="form-label">Budget Range</label>
                     <select
-                      value={quoteForm.budget}
-                      onChange={(e) => setQuoteForm({...quoteForm, budget: e.target.value})}
-                      className="form-input"
+                      name="budget"
+                      className="stable-input"
                       required
+                      defaultValue=""
                     >
                       <option value="">Select Budget</option>
                       <option value="1-5k">$1,000 - $5,000</option>
@@ -904,12 +945,12 @@ const Header = () => (
                 <div className="form-group">
                   <label className="form-label">Project Description *</label>
                   <textarea
-                    value={quoteForm.description}
-                    onChange={(e) => setQuoteForm({...quoteForm, description: e.target.value})}
-                    className="form-input"
+                    name="description"
+                    className="stable-input"
                     placeholder="Tell us about your project..."
                     rows="4"
                     required
+                    defaultValue=""
                   ></textarea>
                 </div>
                 
@@ -918,6 +959,7 @@ const Header = () => (
                     type="submit"
                     disabled={quoteLoading}
                     className="btn btn-primary w-full flex items-center justify-center gap-2"
+                    style={{ padding: '1rem' }}
                   >
                     {quoteLoading ? (
                       <>
@@ -940,82 +982,19 @@ const Header = () => (
     );
   };
 
-  // Modal CSS (add to global.css)
-  const modalStyles = `
-    .modal-overlay {
-      position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background: rgba(0, 0, 0, 0.5);
-      backdrop-filter: blur(4px);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      z-index: 2000;
-      padding: 1rem;
-    }
-    
-    .modal {
-      background: white;
-      border-radius: 1rem;
-      max-width: 500px;
-      width: 100%;
-      max-height: 90vh;
-      overflow-y: auto;
-      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
-    }
-    
-    .modal-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 1.5rem 1.5rem 0;
-    }
-    
-    .modal-title {
-      font-size: 1.5rem;
-      font-weight: 700;
-      color: #1e293b;
-    }
-    
-    .modal-close {
-      background: none;
-      border: none;
-      color: #64748b;
-      cursor: pointer;
-      padding: 0.5rem;
-      border-radius: 0.375rem;
-      transition: all 0.2s;
-    }
-    
-    .modal-close:hover {
-      background: #f1f5f9;
-      color: #475569;
-    }
-    
-    .modal-content {
-      padding: 1.5rem;
-    }
-  `;
-
   return (
-    <>
-      <style>{modalStyles}</style>
-      <div className="App">
-        <Header />
-        <main>
-          <Hero />
-          <ProjectsSection />
-          <ClientsSection />
-          <ContactFormSection />
-          <NewsletterSection />
-        </main>
-        <Footer />
-        <QuoteModal />
-      </div>
-    </>
+    <div className="App">
+      <Header />
+      <main>
+        <Hero />
+        <ProjectsSection />
+        <ClientsSection />
+        <ContactFormSection />
+        <NewsletterSection />
+      </main>
+      <Footer />
+      <QuoteModal />
+    </div>
   );
 }
 

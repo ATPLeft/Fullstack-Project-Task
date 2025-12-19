@@ -8,26 +8,26 @@ const storage = multer.memoryStorage();
 
 // File filter
 const fileFilter = (req, file, cb) => {
-    const allowedTypes = /jpeg|jpg|png|gif/;
+    const allowedTypes = /jpeg|jpg|png|gif|webp/;
     const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
     const mimetype = allowedTypes.test(file.mimetype);
 
     if (extname && mimetype) {
         return cb(null, true);
     } else {
-        cb(new Error('Only images are allowed (jpeg, jpg, png, gif)'));
+        cb(new Error('Only images are allowed (jpeg, jpg, png, gif, webp)'));
     }
 };
 
 // Create multer instance
 const upload = multer({
     storage: storage,
-    limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
+    limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
     fileFilter: fileFilter
 });
 
-// Function to crop and save image (450x350 as per requirements)
-const cropAndSaveImage = async (buffer, folder, filename) => {
+// Function to crop and save image with specified dimensions
+const cropAndSaveImage = async (buffer, folder, filename, width = 450, height = 350) => {
     try {
         // Create folder if it doesn't exist
         if (!fs.existsSync(folder)) {
@@ -36,17 +36,20 @@ const cropAndSaveImage = async (buffer, folder, filename) => {
 
         const filepath = path.join(folder, filename);
         
-        // Crop image to 450x350 (cover mode)
+        // Crop image to specified dimensions (cover mode)
         await sharp(buffer)
-            .resize(450, 350, {
+            .resize(width, height, {
                 fit: 'cover',
                 position: 'center'
             })
             .toFormat('jpeg')
-            .jpeg({ quality: 90 })
+            .jpeg({ quality: 85 })
             .toFile(filepath);
 
-        return `/uploads/${path.basename(folder)}/${filename}`;
+        // Return relative path for database
+        const relativePath = path.relative(path.join(__dirname, '..'), filepath);
+        return `/${relativePath.replace(/\\/g, '/')}`; // Convert to forward slashes
+
     } catch (error) {
         throw new Error('Error processing image: ' + error.message);
     }
